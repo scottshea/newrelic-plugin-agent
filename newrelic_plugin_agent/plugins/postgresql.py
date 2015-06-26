@@ -58,6 +58,18 @@ LOCK_MAP = {'AccessExclusiveLock': 'Locks/Access Exclusive',
             'ShareLock': 'Locks/Share',
             'ShareRowExclusiveLock': 'Locks/Share Row Exclusive'}
 
+CACHE_HIT="""
+    SELECT
+        'index_hit_rate' AS name,
+        (sum(idx_blks_hit)) / nullif(sum(idx_blks_hit + idx_blks_read),0) AS ratio
+    FROM pg_statio_user_indexes
+    UNION ALL
+    SELECT
+        'cache_hit_rate' AS name,
+        sum(heap_blks_hit) / nullif(sum(heap_blks_hit) + sum(heap_blks_read),0) AS ratio
+    FROM pg_statio_user_tables;
+    )
+"""
 
 class PostgreSQL(base.Plugin):
 
@@ -73,6 +85,7 @@ class PostgreSQL(base.Plugin):
             self.add_statio_stats(cursor)
             self.add_table_stats(cursor)
         self.add_transaction_stats(cursor)
+        self.add_cache_hit_stats(cursor)
 
         # add_wal_metrics needs superuser to get directory listings
         if self.config.get('superuser', True):
@@ -227,6 +240,14 @@ class PostgreSQL(base.Plugin):
         self.add_derive_value('Archive Status/Done', 'files',
                               temp.get('done_count', 0))
 
+    def add_cache_hit_stats(self,cursor):
+        cursor.execute(CACHE_HIT)
+        temp = cursor.fetchall()
+        for row in temp:
+            self.add_gauge_value('Cache Hit/Index Hit Rate', 'percentage',
+                                 row.get('index_hit_rate',0))
+            self.add_gauge_value('Cache Hit/Cache Hit Rate', 'percentage',
+                                 row.get('cache_hit_rate',0))
 
     def connect(self):
         """Connect to PostgreSQL, returning the connection object.
