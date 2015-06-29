@@ -254,6 +254,8 @@ class PostgreSQL(base.Plugin):
                                      row.get('index_hit_rate',0))
                 self.add_gauge_value('Cache Hit/Cache Hit Rate', 'percentage',
                                      row.get('cache_hit_rate',0))
+            temp_cursor.close()
+            temp_connection.close()
 
     def connect(self):
         """Connect to PostgreSQL, returning the connection object.
