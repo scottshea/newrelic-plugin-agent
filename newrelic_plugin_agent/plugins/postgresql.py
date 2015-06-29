@@ -58,7 +58,7 @@ LOCK_MAP = {'AccessExclusiveLock': 'Locks/Access Exclusive',
             'ShareLock': 'Locks/Share',
             'ShareRowExclusiveLock': 'Locks/Share Row Exclusive'}
 
-CACHE_HIT="""
+CACHE_HIT = """
     SELECT
         'index_hit_rate' AS name,
         (sum(idx_blks_hit)) / nullif(sum(idx_blks_hit + idx_blks_read),0) AS ratio
@@ -67,8 +67,7 @@ CACHE_HIT="""
     SELECT
         'cache_hit_rate' AS name,
         sum(heap_blks_hit) / nullif(sum(heap_blks_hit) + sum(heap_blks_read),0) AS ratio
-    FROM pg_statio_user_tables;
-    )
+    FROM pg_statio_user_tables
 """
 
 class PostgreSQL(base.Plugin):
