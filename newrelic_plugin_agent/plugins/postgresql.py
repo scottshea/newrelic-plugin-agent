@@ -46,6 +46,7 @@ AS toastindex_blocks_read, sum(tidx_blks_hit) AS toastindex_blocks_hit
 FROM pg_statio_all_tables WHERE schemaname <> 'pg_catalog';"""
 BGWRITER = 'SELECT * FROM pg_stat_bgwriter;'
 DATABASE = 'SELECT * FROM pg_stat_database;'
+GET_DATABASES = 'SELECT datname FROM pg_database WHERE datistemplate = false;'
 LOCKS = 'SELECT mode, count(mode) AS count FROM pg_locks ' \
         'GROUP BY mode ORDER BY mode;'
 
@@ -240,13 +241,19 @@ class PostgreSQL(base.Plugin):
                               temp.get('done_count', 0))
 
     def add_cache_hit_stats(self,cursor):
-        cursor.execute(CACHE_HIT)
-        temp = cursor.fetchall()
-        for row in temp:
-            self.add_gauge_value('Cache Hit/Index Hit Rate', 'percentage',
-                                 row.get('index_hit_rate',0))
-            self.add_gauge_value('Cache Hit/Cache Hit Rate', 'percentage',
-                                 row.get('cache_hit_rate',0))
+        cursor.execute(GET_DATABASES)
+        databases = cursor.fetchall()
+        for database in databases:
+            temp_connection_string = 'dbname=%s user=postgres' % database
+            temp_connection = psycopg2.connect(temp_connection_string)
+            temp_cursor = temp_connection.cursor(cursor_factory=extras.DictCursor)
+            temp_cursor.cursor.execute(CACHE_HIT)
+            db_info = temp_cursor.fetchall()
+            for each row in db_info:
+                self.add_gauge_value('Cache Hit/Index Hit Rate', 'percentage',
+                                     row.get('index_hit_rate',0))
+                self.add_gauge_value('Cache Hit/Cache Hit Rate', 'percentage',
+                                     row.get('cache_hit_rate',0))
 
     def connect(self):
         """Connect to PostgreSQL, returning the connection object.
